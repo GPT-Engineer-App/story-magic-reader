@@ -1,0 +1,49 @@
+from flask import Flask, request, render_template_string
+import openai
+import requests
+
+app = Flask(__name__)
+
+@app.route('/')
+def index():
+    return render_template_string(open('index.html').read())
+
+@app.route('/generate-story', methods=['POST'])
+def generate_story():
+    point_of_view = request.form['point_of_view']
+    era = request.form['era']
+    style = request.form['style']
+
+    # Generate story using ChatGPT (OpenAI API)
+    prompt = f"Write a {style} story from a {point_of_view} perspective set in the {era} era."
+    response = openai.Completion.create(
+        engine="text-davinci-002",
+        prompt=prompt,
+        max_tokens=500
+    )
+    story = response.choices[0].text.strip()
+
+    # Convert story to speech using ElevenLabs API
+    audio_response = requests.post(
+        'https://api.elevenlabs.io/synthesize',
+        json={"text": story},
+        headers={"Authorization": "Bearer YOUR_API_KEY"}
+    )
+    audio_url = audio_response.json()['audioUrl']
+
+    # Return HTML with embedded audio player
+    return f'''
+    <html>
+        <body>
+            <h1>Your Custom Story</h1>
+            <p>{story}</p>
+            <audio controls>
+                <source src="{audio_url}" type="audio/mpeg">
+                Your browser does not support the audio element.
+            </audio>
+        </body>
+    </html>
+    '''
+
+if __name__ == '__main__':
+    app.run(debug=True)
